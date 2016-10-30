@@ -200,15 +200,18 @@ int main (int argc, char ** argv)
 		}
 	case 2:
 		if (strcmp(argv[1], "vector") == 0) {
-			//list = dt_list_vector_new();
-			fprintf(stderr, "Not implemented yet.\n");
-			return 2;
+			list = dt_list_vector_new();
+			break;
 		} else if (strcmp(argv[1], "linked") == 0) {
 			list = dt_list_linked_new();
+			break;
 		} else {
 			usage(stderr);
 			return 1;
 		}
+	case 1:
+		list = dt_list_new();
+	case 0:
 		break;
 	default:
 		usage(stderr);
@@ -229,7 +232,11 @@ int main (int argc, char ** argv)
 		goto exit_main;
 	}
 
-	list_command_line(&cli, list);
+	if (list) {
+		list_command_line(&cli, list);
+	} else {
+		fprintf(stderr, "Failed to make list\n");
+	}
 
 	free(cli.buffer);
 
@@ -501,6 +508,7 @@ void list_iterate(struct cli_info * cli, struct dt_list * list)
 		list->iterator(list);
 
 	if (iterator) {
+		cli_consume_line(cli);
 		iter_command_line(cli, iterator);
 		iterator->del(iterator);
 	} else {
