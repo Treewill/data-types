@@ -103,7 +103,7 @@ static int list_insert(struct dt_list * this, size_t index, void * item)
 	size_t buffer_length =
 		ARRAY_LENGTH(data->buffer, data->buffer_size);
 	
-	if (buffer_length == data->length) {
+	if (buffer_length <= this->length(this)) {
 
 		size_t new_size = data->buffer_size * 2;
 
@@ -116,7 +116,7 @@ static int list_insert(struct dt_list * this, size_t index, void * item)
 		if (!new_buf) return DT_LIST_ENOMEM;
 
 		data->buffer = new_buf;
-		data->buffer_size *= 2;
+		data->buffer_size = new_size;
 
 	}
 
@@ -239,7 +239,7 @@ static void shift_right(struct dt_list * list, size_t start)
 	size_t length = list->length(list);
 	void ** buffer = list_data->buffer + start;
 	void ** end = list_data->buffer + length;
-	for (; buffer != end; end--) {
+	for (; buffer < end; end--) {
 		end[0] = end[-1];
 	}
 }
@@ -249,8 +249,8 @@ static void shift_left(struct dt_list * list, size_t start)
 	struct list_implementation * list_data = list->_data;
 	size_t length = list->length(list);
 	void ** buffer = list_data->buffer + start;
-	void ** end = list_data->buffer + length;
-	for (; buffer != end; buffer++) {
+	void ** end = list_data->buffer + length - 1;
+	for (; buffer < end; buffer++) {
 		buffer[0] = buffer[1];
 	}
 	
