@@ -80,13 +80,13 @@ struct dt_list {
 	struct dt_list_iterator * (* iterator)
 		(struct dt_list * this_);
 	
-	/** Deletes this_ list.
+	/** Deletes this list.
 	 *
 	 *  Arguments:
 	 *    this_: This list.
 	 *
 	 *  Notes:
-	 *    Invalidates all references to this_ list and
+	 *    Invalidates all references to this list and
 	 *    all iterators produced.
 	 */
 	void (* del)(struct dt_list * this_);
@@ -178,7 +178,7 @@ struct dt_list_iterator {
 	 */
 	int (* remove)(struct dt_list_iterator * this_);
 
-	/** Deletes this_ iterator.
+	/** Deletes this iterator.
 	 *
 	 *  Arguments:
 	 *    this_: This iterator.
