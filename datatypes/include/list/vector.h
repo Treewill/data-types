@@ -10,7 +10,7 @@ extern "C" {
 /** Creates a new vector list.
  *
  *  Returns:
- *    A new list. Or NULL if there's not
+ *    A new list. Or NULL if there is not
  *    enough memory.
  */
 struct dt_list * dt_list_vector_new(void);
