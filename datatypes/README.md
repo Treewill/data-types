@@ -11,6 +11,10 @@ Navigating the source
   If you are implementing them you should not
   need to change them.
 
+#### include-bin
+  Here lie headers for the testing programs
+  in the `bin` folder.
+
 #### src
   The implementation and other tools lie here.
   Inside you have:
@@ -18,6 +22,8 @@ Navigating the source
   1. `lib` where you'll find a prepared implementation.
      Or you can put your own in here if you are implementing
      it yourself.
-  2. `test` where you can find the google test test cases.
-  3. `bin` where you will find some helpful programs to get
+  2. `lib-bin` where you can find some code for the testing
+      programs to use.
+  3. `test` where you can find the google test test cases.
+  4. `bin` where you will find some helpful programs to get
       you started.
