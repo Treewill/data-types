@@ -1,5 +1,3 @@
-#define _GNU_SOURCE
-
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -11,8 +9,10 @@
 #include "list/vector.h"
 #include "list/linked.h"
 
-#define COMMAND_LENGTH 4096
-#define WHITESPACE " \t"
+#include "cli.h"
+
+#define LIST_PROMPT "> "
+#define ITERATOR_PROMPT "iterator> "
 
 #define LIST_GET_COMMAND "get"
 #define LIST_INSERT_COMMAND "insert"
@@ -33,137 +33,64 @@
 #define ITERATOR_PRINT_COMMAND "print"
 #define ITERATOR_QUIT_COMMAND "quit"
 
-// Note: There's actually a bug here.
-//       if the command ever exceeds
-//       COMMAND_LENGTH we may cut up
-//       tokens.
-
 static char * program_name = "list_test";
 static bool is_tty = true;
+static char * list_prompt = LIST_PROMPT;
+static char * iterator_prompt = ITERATOR_PROMPT;
 static char haxx[257];
-
-struct cli_info{
-	FILE * input;
-	FILE * output;
-	char * buffer;
-	size_t buffer_length;
-	char * token;
-	bool eol;
-	char * save_tok;
-};
-
-enum list_command {
-	LIST_INVALID,
-	LIST_NONE,
-	LIST_GET,
-	LIST_INSERT,
-	LIST_REMOVE,
-	LIST_LENGTH,
-	LIST_ITERATE,
-	LIST_HELP,
-	LIST_PRINT,
-	LIST_QUIT
-};
-
-enum iterator_command {
-	ITERATOR_INVALID,
-	ITERATOR_NONE,
-	ITERATOR_GET,
-	ITERATOR_VALID,
-	ITERATOR_NEXT,
-	ITERATOR_PREVIOUS,
-	ITERATOR_INSERT,
-	ITERATOR_REMOVE,
-	ITERATOR_HELP,
-	ITERATOR_PRINT,
-	ITERATOR_QUIT
-};
-
 
 int main(int argc, char ** argv);
 
 /** Prints the usage to the given stream.
- *  
+ *
  *  Arguments:
  *    stream: The stream to write to.
  */
 void usage(FILE * stream);
 
-/** Consumes the rest of the line
- *
- *  Arguments:
- *    cli: The cli to consume.
- */
-void cli_consume_line(struct cli_info * cli);
+// List commands.
+int list_get(struct cli_t * cli, struct dt_list * list);
+int list_insert(struct cli_t * cli, struct dt_list * list);
+int list_remove(struct cli_t * cli, struct dt_list * list);
+int list_length(struct cli_t * cli, struct dt_list * list);
+int list_iterate(struct cli_t * cli, struct dt_list * list);
+int list_help(struct cli_t * cli, struct dt_list * list);
+int list_print(struct cli_t * cli, struct dt_list * list);
+int list_quit(struct cli_t * cli, struct dt_list * list);
 
-/** Gets the next token.
- *
- *  Arguments:
- *    cli: The cli to advance.
- *
- *  Returns:
- *    Zero on success. One on EOF.
- */
-int cli_next_token(struct cli_info * cli);
+// Iterator commands.
+int iterator_get(struct cli_t * cli, struct dt_list_iterator * iterator);
+int iterator_valid(struct cli_t * cli, struct dt_list_iterator * iterator);
+int iterator_next(struct cli_t * cli, struct dt_list_iterator * iterator);
+int iterator_previous(struct cli_t * cli, struct dt_list_iterator * iterator);
+int iterator_insert(struct cli_t * cli, struct dt_list_iterator * iterator);
+int iterator_remove(struct cli_t * cli, struct dt_list_iterator * iterator);
+int iterator_help(struct cli_t * cli, struct dt_list_iterator * iterator);
+int iterator_print(struct cli_t * cli, struct dt_list_iterator * iterator);
+int iterator_quit(struct cli_t * cli, struct dt_list_iterator * iterator);
 
-/** Check if prefix is a prefix of str
- *
- *  Arguments:
- *    prefix: The prefix to find.
- *    str: The string to check.
- *
- *  Returns:
- *    true if prefix is a prefix of str,
- *    false otherwise.
- */
-bool is_prefix(const char *prefix, const char * str);
+static struct cli_menu_item_t list_items[] = {
+	{LIST_GET_COMMAND, (int (*)(struct cli_t *, void *))&list_get},
+	{LIST_INSERT_COMMAND, (int (*)(struct cli_t *, void *))&list_insert},
+	{LIST_REMOVE_COMMAND, (int (*)(struct cli_t *, void *))&list_remove},
+	{LIST_LENGTH_COMMAND, (int (*)(struct cli_t *, void *))&list_length},
+	{LIST_ITERATE_COMMAND, (int (*)(struct cli_t *, void *))&list_iterate},
+	{LIST_HELP_COMMAND, (int (*)(struct cli_t *, void *))&list_help},
+	{LIST_PRINT_COMMAND, (int (*)(struct cli_t *, void *))&list_print},
+	{LIST_QUIT_COMMAND, (int (*)(struct cli_t *, void *))&list_quit}
+};
 
-/** Runs the CLI for lists
- *
- *  Arguments:
- *    cli: The I/O info for the command line.
- *    list: The list to work with.
- */
-void list_command_line(struct cli_info * cli, struct dt_list * list);
-enum list_command list_command_get(struct cli_info * cli);
-void list_get(struct cli_info * cli, struct dt_list * list);
-void list_insert(struct cli_info * cli, struct dt_list * list);
-void list_remove(struct cli_info * cli, struct dt_list * list);
-void list_length(struct cli_info * cli, struct dt_list * list);
-void list_iterate(struct cli_info * cli, struct dt_list * list);
-void list_help(struct cli_info * cli, struct dt_list * list);
-void list_print(struct cli_info * cli, struct dt_list * list);
-void list_invalid(struct cli_info * cli, struct dt_list * list);
-
-
-
-/** Runs the CLI for list iterators
- *
- *  Arguments:
- *    cli: The I/O info for the command line.
- *    iterator: The list iterator to work with.
- */
-void iter_command_line
-	(struct cli_info * cli, struct dt_list_iterator * iterator);
-enum iterator_command iterator_command_get(struct cli_info * cli);
-void iterator_get
-	(struct cli_info * cli, struct dt_list_iterator * iterator);
-void iterator_valid
-	(struct cli_info * cli, struct dt_list_iterator * iterator);
-void iterator_next
-	(struct cli_info * cli, struct dt_list_iterator * iterator);
-void iterator_previous
-	(struct cli_info * cli, struct dt_list_iterator * iterator);
-void iterator_insert
-	(struct cli_info * cli, struct dt_list_iterator * iterator);
-void iterator_remove
-	(struct cli_info * cli, struct dt_list_iterator * iterator);
-void iterator_help
-	(struct cli_info * cli, struct dt_list_iterator * iterator);
-void iterator_print
-	(struct cli_info * cli, struct dt_list_iterator * iterator);
-void iterator_invalid
-	(struct cli_info * cli, struct dt_list_iterator * iterator);
+static struct cli_menu_item_t iterator_items[] = {
+	{ITERATOR_GET_COMMAND, (int (*)(struct cli_t *, void *))&iterator_get},
+	{ITERATOR_VALID_COMMAND, (int (*)(struct cli_t *, void *))&iterator_valid},
+	{ITERATOR_NEXT_COMMAND, (int (*)(struct cli_t *, void *))&iterator_next},
+	{ITERATOR_PREVIOUS_COMMAND, (int (*)(struct cli_t *, void *))&iterator_previous},
+	{ITERATOR_INSERT_COMMAND, (int (*)(struct cli_t *, void *))&iterator_insert},
+	{ITERATOR_REMOVE_COMMAND, (int (*)(struct cli_t *, void *))&iterator_remove},
+	{ITERATOR_HELP_COMMAND, (int (*)(struct cli_t *, void *))&iterator_help},
+	{ITERATOR_PRINT_COMMAND, (int (*)(struct cli_t *, void *))&iterator_print},
+	{ITERATOR_QUIT_COMMAND, (int (*)(struct cli_t *, void *))&iterator_quit}
+};
 
 void usage(FILE * stream)
 {
@@ -218,186 +145,45 @@ int main (int argc, char ** argv)
 		return 1;		
 	}
 
-	struct cli_info cli;
-	cli.input = stdin;
-	cli.output = stdout;
-	cli.buffer_length = sizeof(*(cli.buffer)) * COMMAND_LENGTH;
-	cli.buffer = malloc(cli.buffer_length);
-	cli.save_tok = NULL;
+	if(!is_tty) {
+		list_prompt = "";
+		iterator_prompt = "";
+	}
 
-	cli.buffer[0] = '\0';
+	struct cli_t cli;
 
-	if (!cli.buffer) {
-		return_value = 2;
+	if(cli_init(&cli, list_prompt, stdin, stdout, stderr)) {
+		fprintf(stderr, "Failed to initialize CLI.\n");
+		return_value = 1;
 		goto exit_main;
 	}
 
 	if (list) {
-		list_command_line(&cli, list);
+		return_value = cli_exec(
+			&cli,
+			list_items, sizeof(list_items) / sizeof(*list_items),
+			list);
 	} else {
 		fprintf(stderr, "Failed to make list\n");
+		return_value = 1;
 	}
 
-	free(cli.buffer);
+	cli_dispose(&cli);
 
 	exit_main:
 	list->del(list);
 	return return_value;
 }
 
-void cli_consume_line(struct cli_info * cli)
-{
-	if (cli->eol) return;
-
-	char * token = NULL;
-	while (true) {
-		if (cli->save_tok == NULL) {
-			token = strtok_r(cli->buffer, "", &(cli->save_tok));
-		} else {
-			token = strtok_r(NULL, "", &(cli->save_tok));
-		}
-
-		cli->save_tok = NULL;
-
-		if (token && strchr(token, '\n')) break;
-
-		fgets(cli->buffer, cli->buffer_length, cli->input);
-	}
-	cli->buffer[0] = '\0';
-}
-
-int cli_next_token(struct cli_info * cli)
-{
-	char * token = NULL;
-	do {
-		if (cli->save_tok == NULL) {
-			token = strtok_r(
-				cli->buffer, WHITESPACE, &(cli->save_tok));
-		} else {
-			token = strtok_r(NULL, WHITESPACE, &(cli->save_tok));
-		}
-		if (token == NULL) {
-			char * return_value = fgets(
-				cli->buffer, cli->buffer_length, cli->input);
-			if (!return_value) return 1;
-			cli->save_tok = NULL;
-		}
-	} while (token == NULL);
-	char * nl = strchr(token, '\n');
-	cli->eol = nl != NULL;
-	if (nl) *nl = '\0';
-	cli->token = token;
-	return 0;
-}
-
-
-bool is_prefix(const char *prefix, const char * str)
-{
-	return strcasestr(str, prefix) == str;
-}
-
-
-
-void list_command_line(struct cli_info * cli, struct dt_list * list)
-{
-	while (true){
-		if (is_tty) {
-			fprintf(cli->output, "> ");
-			fflush(cli->output);
-		}
-		switch(list_command_get(cli)){
-		case LIST_NONE: continue;
-		case LIST_GET: 
-			list_get(cli, list);
-			break;
-		case LIST_INSERT:
-			list_insert(cli, list);
-			break;
-		case LIST_REMOVE: 
-			list_remove(cli, list);
-			break;
-		case LIST_LENGTH: 
-			list_length(cli, list);
-			break;
-		case LIST_ITERATE:
-			list_iterate(cli, list);
-			break;
-		case LIST_HELP:
-			list_help(cli, list);
-			break;
-		case LIST_PRINT:
-			list_print(cli, list);
-			break;
-		case LIST_QUIT:
-			return;
-		case LIST_INVALID:
-		default:
-			list_invalid(cli, list);
-		}
-		cli_consume_line(cli);
-	}
-}
-
-enum list_command list_command_get(struct cli_info * cli)
-{
-	int match_count = 0;
-	enum list_command command;
-
-	if (cli_next_token(cli)) {
-		fprintf(cli->output, "\n");
-		return LIST_QUIT;
-	}
-	char * text = cli->token;
-
-	if (cli->eol && text[0] == '\0') return LIST_NONE;
-
-	if (is_prefix(text, LIST_GET_COMMAND)) {
-		match_count++;
-		command = LIST_GET;
-	}
-	if (is_prefix(text, LIST_INSERT_COMMAND)) {
-		match_count++;
-		command = LIST_INSERT;
-	}
-	if (is_prefix(text, LIST_REMOVE_COMMAND)) {
-		match_count++;
-		command = LIST_REMOVE;
-	}
-	if (is_prefix(text, LIST_LENGTH_COMMAND)) {
-		match_count++;
-		command = LIST_LENGTH;
-	}
-	if (is_prefix(text, LIST_ITERATE_COMMAND)) {
-		match_count++;
-		command = LIST_ITERATE;
-	}
-	if (is_prefix(text, LIST_HELP_COMMAND)) {
-		match_count++;
-		command = LIST_HELP;
-	}
-	if (is_prefix(text, LIST_PRINT_COMMAND)) {
-		match_count++;
-		command = LIST_PRINT;
-	}
-	if (is_prefix(text, LIST_QUIT_COMMAND)) {
-		match_count++;
-		command = LIST_QUIT;
-	}
-
-
-	if (match_count - 1) return LIST_INVALID;
-	return command;
-}
-
-void list_get(struct cli_info * cli, struct dt_list * list)
+int list_get(struct cli_t * cli, struct dt_list * list)
 {
 	if (cli->eol) {
 		fprintf(cli->output, "get: expected index (see help).\n");
-		return;
+		return CLI_CONTINUE;
 	}
 
 	while (!cli->eol) {
-		cli_next_token(cli);
+		cli_advance_token(cli);
 
 		long index;
 		char * endptr;
@@ -424,20 +210,21 @@ void list_get(struct cli_info * cli, struct dt_list * list)
 	}
 
 	fprintf(cli->output, "\n");
+	return CLI_CONTINUE;
 }
 
-void list_insert(struct cli_info * cli, struct dt_list * list)
+int list_insert(struct cli_t * cli, struct dt_list * list)
 {
 	if (cli->eol) {
 		fprintf(cli->output, "insert: expected index and element (see help).\n");
-		return;
+		return CLI_CONTINUE;
 	}
 
-	cli_next_token(cli);
+	cli_advance_token(cli);
 
 	if (cli->eol) {
 		fprintf(cli->output, "insert: expected element (see help).\n");
-		return;
+		return CLI_CONTINUE;
 	}
 
 	long index;
@@ -447,36 +234,36 @@ void list_insert(struct cli_info * cli, struct dt_list * list)
 	
 	if (*endptr != '\0') {
 		fprintf(cli->output, "insert: invalid index (must be a number).\n");
-		return;
+		return CLI_CONTINUE;
 	} else if (index > list->length(list) || errno == ERANGE || index < 0) {
 		fprintf(cli->output, "insert: index out of range (see length).\n");
-		return;
+		return CLI_CONTINUE;
 	}
 
 	while (!cli->eol) {
-		cli_next_token(cli);
+		cli_advance_token(cli);
 
 		if (strlen(cli->token) > 1) {
 			fprintf(cli->output, "insert: item must be a single charcter.\n");
-			return;
+			return CLI_CONTINUE;
 		}
 
 		haxx[(int)*(cli->token)] = *(cli->token);
 		list->insert(list, index, haxx + *(cli->token));
 		index++;
 	}
-
+	return CLI_CONTINUE;
 }
 
-void list_remove(struct cli_info * cli, struct dt_list * list)
+int list_remove(struct cli_t * cli, struct dt_list * list)
 {
 	if (cli->eol) {
 		fprintf(cli->output, "remove: expected index (see help).\n");
-		return;
+		return CLI_CONTINUE;
 	}
 
 	while (!cli->eol) {
-		cli_next_token(cli);
+		cli_advance_token(cli);
 
 		long index;
 		char * endptr;
@@ -487,7 +274,7 @@ void list_remove(struct cli_info * cli, struct dt_list * list)
 
 		if (*endptr != '\0') {
 			fprintf(cli->output, "remove: invalid index (must be a number).\n");
-			return;
+			return CLI_CONTINUE;
 		} else if (index >= list->length(list) || errno == ERANGE || index < 0) {
 			fprintf(cli->output, "remove: index out of range (see length).\n");
 			continue;
@@ -495,28 +282,38 @@ void list_remove(struct cli_info * cli, struct dt_list * list)
 
 		list->remove(list, index);
 	}
+	return CLI_CONTINUE;
 }
 
-void list_length(struct cli_info * cli, struct dt_list * list)
+int list_length(struct cli_t * cli, struct dt_list * list)
 {
 	fprintf(cli->output, "Length: %ld\n", list->length(list));
+	return CLI_CONTINUE;
 }
 
-void list_iterate(struct cli_info * cli, struct dt_list * list)
+int list_iterate(struct cli_t * cli, struct dt_list * list)
 {
 	struct dt_list_iterator * iterator =
 		list->iterator(list);
 
 	if (iterator) {
-		cli_consume_line(cli);
-		iter_command_line(cli, iterator);
+		cli_advance_line(cli);
+		char * last_prompt = cli->prompt;
+		cli->prompt = iterator_prompt;
+		cli_exec(
+			cli,
+			iterator_items,
+			sizeof(iterator_items) / sizeof(*iterator_items),
+			iterator);
+		cli->prompt = last_prompt;
 		iterator->del(iterator);
 	} else {
 		fprintf(cli->output, "iterate: creation failed.\n");
 	}
+	return CLI_CONTINUE;
 }
 
-void list_help(struct cli_info * cli, struct dt_list * list)
+int list_help(struct cli_t * cli, struct dt_list * list)
 {
 	fprintf(cli->output,
 		"get <index>: Prints the item at the index in the list.\n");
@@ -534,17 +331,17 @@ void list_help(struct cli_info * cli, struct dt_list * list)
 		"print: Prints out the list in a human readable form.\n");
 	fprintf(cli->output,
 		"quit: Quits.\n");
-
+	return CLI_CONTINUE;
 }
 
-void list_print(struct cli_info * cli, struct dt_list * list)
+int list_print(struct cli_t * cli, struct dt_list * list)
 {
 	struct dt_list_iterator * iterator =
 		list->iterator(list);
 
 	if (!iterator) {
 		fprintf(cli->output, "print: iterator creation failed.\n");
-		return;
+		return CLI_CONTINUE;
 	}
 
 	fprintf(cli->output, "[");
@@ -559,116 +356,16 @@ void list_print(struct cli_info * cli, struct dt_list * list)
 	fprintf(cli->output, " ]\n");
 
 	iterator->del(iterator);
+	return CLI_CONTINUE;
 }
 
-void list_invalid(struct cli_info * cli, struct dt_list * list)
-{
-	fprintf(cli->output, "Unrecognized command. Type help for help.\n");
+int list_quit(struct cli_t * cli, struct dt_list * list) {
+	return CLI_EXIT_SUCCESS;
 }
 
 
-
-void iter_command_line
-	(struct cli_info * cli, struct dt_list_iterator * iterator)
-{
-	while (true){
-		if (is_tty) {
-			fprintf(cli->output, "iterator> ");
-			fflush(cli->output);
-		}
-		switch(iterator_command_get(cli)){
-		case ITERATOR_NONE: continue;
-		case ITERATOR_GET: 
-			iterator_get(cli, iterator);
-			break;
-		case ITERATOR_VALID: 
-			iterator_valid(cli, iterator);
-			break;
-		case ITERATOR_NEXT:
-			iterator_next(cli, iterator);
-			break;
-		case ITERATOR_PREVIOUS: 
-			iterator_previous(cli, iterator);
-			break;
-		case ITERATOR_INSERT:
-			iterator_insert(cli, iterator);
-			break;
-		case ITERATOR_REMOVE: 
-			iterator_remove(cli, iterator);
-			break;
-		case ITERATOR_HELP:
-			iterator_help(cli, iterator);
-			break;
-		case ITERATOR_PRINT:
-			iterator_print(cli, iterator);
-			break;
-		case ITERATOR_QUIT:
-			return;
-		case ITERATOR_INVALID:
-		default:
-			iterator_invalid(cli, iterator);
-		}
-		cli_consume_line(cli);
-	}
-}
-
-enum iterator_command iterator_command_get(struct cli_info * cli)
-{
-	int match_count = 0;
-	enum iterator_command command;
-
-	if (cli_next_token(cli)) {
-		fprintf(cli->output, "\n");
-		return ITERATOR_QUIT;
-	}
-	char * text = cli->token;
-
-	if (cli->eol && text[0] == '\0') return ITERATOR_NONE;
-
-	if (is_prefix(text, ITERATOR_GET_COMMAND)) {
-		match_count++;
-		command = ITERATOR_GET;
-	}
-	if (is_prefix(text, ITERATOR_VALID_COMMAND)) {
-		match_count++;
-		command = ITERATOR_VALID;
-	}
-	if (is_prefix(text, ITERATOR_NEXT_COMMAND)) {
-		match_count++;
-		command = ITERATOR_NEXT;
-	}
-	if (is_prefix(text, ITERATOR_PREVIOUS_COMMAND)) {
-		match_count++;
-		command = ITERATOR_PREVIOUS;
-	}
-	if (is_prefix(text, ITERATOR_INSERT_COMMAND)) {
-		match_count++;
-		command = ITERATOR_INSERT;
-	}
-	if (is_prefix(text, ITERATOR_REMOVE_COMMAND)) {
-		match_count++;
-		command = ITERATOR_REMOVE;
-	}
-	if (is_prefix(text, ITERATOR_HELP_COMMAND)) {
-		match_count++;
-		command = ITERATOR_HELP;
-	}
-	if (is_prefix(text, ITERATOR_PRINT_COMMAND)) {
-		match_count++;
-		command = ITERATOR_PRINT;
-	}
-	if (is_prefix(text, ITERATOR_QUIT_COMMAND)) {
-		match_count++;
-		command = ITERATOR_QUIT;
-	}
-
-
-	if (match_count - 1) return ITERATOR_INVALID;
-	return command;
-}
-
-void iterator_get
-	(struct cli_info * cli, struct dt_list_iterator * iterator)
+int iterator_get
+	(struct cli_t * cli, struct dt_list_iterator * iterator)
 {
 	if (!iterator->valid(iterator)) {
 		fprintf(cli->output, "(INVALID)\n");
@@ -680,61 +377,67 @@ void iterator_get
 			fprintf(cli->output, "%c\n", *character);
 		}
 	}
+	return CLI_CONTINUE;
 }
 
-void iterator_valid
-	(struct cli_info * cli, struct dt_list_iterator * iterator)
+int iterator_valid
+	(struct cli_t * cli, struct dt_list_iterator * iterator)
 {
 	if (iterator->valid(iterator)) {
 		fprintf(cli->output, "true\n");
 	} else {
 		fprintf(cli->output, "false\n");
 	}
+	return CLI_CONTINUE;
 }
 
-void iterator_next
-	(struct cli_info * cli, struct dt_list_iterator * iterator)
+int iterator_next
+	(struct cli_t * cli, struct dt_list_iterator * iterator)
 {
 	iterator->next(iterator);
+	return CLI_CONTINUE;
 }
 
-void iterator_previous
-	(struct cli_info * cli, struct dt_list_iterator * iterator)
+int iterator_previous
+	(struct cli_t * cli, struct dt_list_iterator * iterator)
 {
 	iterator->previous(iterator);
+	return CLI_CONTINUE;
 }
 
-void iterator_insert
-	(struct cli_info * cli, struct dt_list_iterator * iterator)
+int iterator_insert
+	(struct cli_t * cli, struct dt_list_iterator * iterator)
 {
 	if (cli->eol) {
 		fprintf(cli->output, "insert: expected item to insert (see help).\n");
-		return;
+		return CLI_CONTINUE;
 	}
 
-	cli_next_token(cli);
+	cli_advance_token(cli);
 	if (strlen(cli->token) > 1) {
 		fprintf(cli->output, "insert: item must be a single charcter.\n");
-		return;
+		return CLI_CONTINUE;
 	}
 
 	haxx[(int)*(cli->token)] = *(cli->token);
 	iterator->insert(iterator, haxx + *(cli->token));
 
+	return CLI_CONTINUE;
 }
 
-void iterator_remove
-	(struct cli_info * cli, struct dt_list_iterator * iterator)
+int iterator_remove
+	(struct cli_t * cli, struct dt_list_iterator * iterator)
 {
 	if (!iterator->valid(iterator)) {
 		fprintf(cli->output, "remove: iterator not pointing at item.\n");
 	} else {
 		iterator->remove(iterator);
 	}
+	return CLI_CONTINUE;
 }
 
-void iterator_help
-	(struct cli_info * cli, struct dt_list_iterator * iterator)
+int iterator_help
+	(struct cli_t * cli, struct dt_list_iterator * iterator)
 {
 	fprintf(cli->output,
 		"get: Prints the current item.\n");
@@ -754,17 +457,17 @@ void iterator_help
 		"print: Prints the index.\n");
 	fprintf(cli->output,
 		"quit: Quits.\n");
+	return CLI_CONTINUE;
 }
 
-void iterator_print
-	(struct cli_info * cli, struct dt_list_iterator * iterator)
+int iterator_print
+	(struct cli_t * cli, struct dt_list_iterator * iterator)
 {
 	fprintf(cli->output, "Index: %ld\n", iterator->position);
+	return CLI_CONTINUE;
 }
 
-void iterator_invalid
-	(struct cli_info * cli, struct dt_list_iterator * iterator)
+int iterator_quit(struct cli_t * cli, struct dt_list_iterator * iterator)
 {
-	fprintf(cli->output, "Unrecognized command. Type help for help.\n");
+	return CLI_EXIT_SUCCESS;
 }
-
