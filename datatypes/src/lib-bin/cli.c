@@ -70,6 +70,7 @@ int cli_init(struct cli_t * cli, char * prompt,
 	cli->error = error;
 	
 	cli->buffer = malloc(buffer_size);
+	memset(cli->buffer, 0, buffer_size);
 	cli->buffer_size = buffer_size;
 
 	cli->token = NULL;
