@@ -18,7 +18,6 @@
 #define STACK_PEEK_COMMAND "peek"
 #define STACK_LENGTH_COMMAND "length"
 #define STACK_HELP_COMMAND "help"
-#define STACK_PRINT_COMMAND "print"
 #define STACK_QUIT_COMMAND "quit"
 
 

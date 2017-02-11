@@ -1,10 +1,10 @@
 
 #include "stack/vector.h"
 #include "stack/error.h"
+
 #include <stdlib.h>
 
-#define ARRAY_LENGTH(array, size) (size / sizeof(*array))
-#define ARRAY_SIZE(array, length) (length * sizeof(*array))
+#include "buffers.h"
 
 struct stack_implementation;
 struct stack_implementation {
