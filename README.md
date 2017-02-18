@@ -110,7 +110,7 @@ I'll be happy to add your fix.
   on your own. Feel free to just delete the one you
   want to work on and leave the rest intact that way
   most of the programs will still work.
-  
+
   To get your hands dirty quick just modify the hello
   program and rebuild. Then you are ready to go further.
 
@@ -133,6 +133,18 @@ I'll be happy to add your fix.
   And when you think your code is ready you can
   run it against the tests in `build/datatypes/test/*'
   programs.
+
+  NOTE: I do not generally recommend implementing these
+  yourself in mot programs you write. Someone else has
+  probalby done a great job of it already. If you are
+  using C you might want to check out the boost library.
+
+  NOTE: I do not generally recommend implementing
+  interfaces like this in C because it makes a lot of
+  pointer dereferences on pointers that never change.
+  It is also unlikely that you will need more than
+  one implementation per C file and so you can just
+  change the linkage.
 
 #### More documentation
 
